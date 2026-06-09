@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Job de Linter (Análise Estática)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verifica erros de sintaxe em HTML
+        run: |
+          sudo npm install -g htmlhint
+          htmlhint ./*.html
+      - name: Verifica erros de sintaxe em JavaScript
+        run: |
+          sudo npm install -g jshint
+          jshint ./*.js
+
+  # Job de Build (Validação de Build)
+  build:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simula processo de build
+        run: |
+          echo "Verificando arquivos estáticos..."
+          if [ ! -f "./index.html" ]; then exit 1; fi
+          echo "Build validado com sucesso!"
+
+  # Job de Deploy (GitHub Pages)
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write      # Permissão para publicar no GitHub Pages
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - id: deployment
+        uses: actions/deploy-pages@v4
